@@ -1,0 +1,400 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Heart, TrendingUp, Plus, Edit3, Trash2, Save, X } from 'lucide-react';
+
+const GLP1Tracker = () => {
+  const [injections, setInjections] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [currentWeek, setCurrentWeek] = useState(getWeekNumber(new Date()));
+  
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().slice(0, 5),
+    location: '',
+    dosage: '',
+    sideEffects: '',
+    mood: 5,
+    appetite: 5,
+    energy: 5,
+    notes: ''
+  });
+
+  const injectionSites = [
+    'Abdomen (left side)',
+    'Abdomen (right side)', 
+    'Thigh (left)',
+    'Thigh (right)',
+    'Upper arm (left)',
+    'Upper arm (right)'
+  ];
+
+  const sideEffectOptions = [
+    'None',
+    'Nausea',
+    'Vomiting', 
+    'Diarrhea',
+    'Constipation',
+    'Headache',
+    'Fatigue',
+    'Decreased appetite',
+    'Injection site reaction'
+  ];
+
+  function getWeekNumber(date) {
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date - startOfYear) / 86400000;
+    return Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+  }
+
+  const handleSubmit = () => {
+    const newInjection = {
+      id: editingId || Date.now(),
+      ...formData,
+      week: getWeekNumber(new Date(formData.date)),
+      timestamp: new Date().toISOString()
+    };
+
+    if (editingId) {
+      setInjections(prev => prev.map(inj => inj.id === editingId ? newInjection : inj));
+      setEditingId(null);
+    } else {
+      setInjections(prev => [...prev, newInjection]);
+    }
+
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toTimeString().slice(0, 5),
+      location: '',
+      dosage: '',
+      sideEffects: '',
+      mood: 5,
+      appetite: 5,
+      energy: 5,
+      notes: ''
+    });
+    setShowForm(false);
+    setEditingId(null);
+  };
+
+  const editInjection = (injection) => {
+    setFormData(injection);
+    setEditingId(injection.id);
+    setShowForm(true);
+  };
+
+  const deleteInjection = (id) => {
+    setInjections(prev => prev.filter(inj => inj.id !== id));
+  };
+
+  const getWeeklyStats = (week) => {
+    const weekInjections = injections.filter(inj => inj.week === week);
+    if (weekInjections.length === 0) return null;
+
+    const avgMood = weekInjections.reduce((sum, inj) => sum + parseInt(inj.mood), 0) / weekInjections.length;
+    const avgAppetite = weekInjections.reduce((sum, inj) => sum + parseInt(inj.appetite), 0) / weekInjections.length;
+    const avgEnergy = weekInjections.reduce((sum, inj) => sum + parseInt(inj.energy), 0) / weekInjections.length;
+    
+    return {
+      count: weekInjections.length,
+      avgMood: avgMood.toFixed(1),
+      avgAppetite: avgAppetite.toFixed(1),
+      avgEnergy: avgEnergy.toFixed(1),
+      commonSideEffects: [...new Set(weekInjections.map(inj => inj.sideEffects).filter(Boolean))]
+    };
+  };
+
+  const weeklyStats = getWeeklyStats(currentWeek);
+  const sortedInjections = [...injections].sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Jessica's GLP-1 Injection Tracker</h1>
+              <p className="text-gray-600">Track your injections and monitor your progress</p>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors shadow-lg"
+            >
+              <Plus size={20} />
+              Add Injection
+            </button>
+          </div>
+        </div>
+
+        {/* Weekly Summary */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+              <TrendingUp className="text-green-600" size={24} />
+              Week {currentWeek} Summary
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentWeek(prev => prev - 1)}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentWeek(prev => prev + 1)}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          
+          {weeklyStats ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <div className="text-2xl font-bold text-blue-600">{weeklyStats.count}</div>
+                <div className="text-sm text-gray-600">Injections</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-xl">
+                <div className="text-2xl font-bold text-green-600">{weeklyStats.avgMood}/10</div>
+                <div className="text-sm text-gray-600">Avg Mood</div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-xl">
+                <div className="text-2xl font-bold text-purple-600">{weeklyStats.avgAppetite}/10</div>
+                <div className="text-sm text-gray-600">Avg Appetite</div>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-xl">
+                <div className="text-2xl font-bold text-orange-600">{weeklyStats.avgEnergy}/10</div>
+                <div className="text-sm text-gray-600">Avg Energy</div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">No injections recorded for this week yet</p>
+          )}
+        </div>
+
+        {/* Add/Edit Form */}
+        {showForm && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              {editingId ? 'Edit Injection' : 'Add New Injection'}
+            </h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData(prev => ({...prev, time: e.target.value}))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Injection Site</label>
+                  <select
+                    value={formData.location}
+                    onChange={(e) => setFormData(prev => ({...prev, location: e.target.value}))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select injection site</option>
+                    {injectionSites.map(site => (
+                      <option key={site} value={site}>{site}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dosage</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., 0.25mg, 0.5mg, 1mg"
+                    value={formData.dosage}
+                    onChange={(e) => setFormData(prev => ({...prev, dosage: e.target.value}))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Side Effects</label>
+                <select
+                  value={formData.sideEffects}
+                  onChange={(e) => setFormData(prev => ({...prev, sideEffects: e.target.value}))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {sideEffectOptions.map(effect => (
+                    <option key={effect} value={effect}>{effect}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mood (1-10)</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={formData.mood}
+                    onChange={(e) => setFormData(prev => ({...prev, mood: e.target.value}))}
+                    className="w-full"
+                  />
+                  <div className="text-center text-sm text-gray-600">{formData.mood}/10</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Appetite (1-10)</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={formData.appetite}
+                    onChange={(e) => setFormData(prev => ({...prev, appetite: e.target.value}))}
+                    className="w-full"
+                  />
+                  <div className="text-center text-sm text-gray-600">{formData.appetite}/10</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Energy (1-10)</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={formData.energy}
+                    onChange={(e) => setFormData(prev => ({...prev, energy: e.target.value}))}
+                    className="w-full"
+                  />
+                  <div className="text-center text-sm text-gray-600">{formData.energy}/10</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
+                  placeholder="Any additional notes about how you felt, effectiveness, etc."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <Save size={20} />
+                  {editingId ? 'Update' : 'Save'} Injection
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <X size={20} />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Injection History */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Injection History</h2>
+          {sortedInjections.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No injections recorded yet. Add your first injection above!</p>
+          ) : (
+            <div className="space-y-4">
+              {sortedInjections.map((injection) => (
+                <div key={injection.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <Calendar className="text-blue-600" size={20} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">
+                          {new Date(injection.date).toLocaleDateString()} at {injection.time}
+                        </div>
+                        <div className="text-sm text-gray-600">Week {injection.week}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => editInjection(injection)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => deleteInjection(injection.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="text-gray-400" size={16} />
+                      <span className="text-sm text-gray-600">{injection.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Heart className="text-red-400" size={16} />
+                      <span className="text-sm text-gray-600">{injection.dosage}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Mood: {injection.mood}/10
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Appetite: {injection.appetite}/10
+                    </div>
+                  </div>
+                  
+                  {injection.sideEffects && injection.sideEffects !== 'None' && (
+                    <div className="mb-2">
+                      <span className="text-sm font-medium text-gray-700">Side Effects: </span>
+                      <span className="text-sm text-orange-600">{injection.sideEffects}</span>
+                    </div>
+                  )}
+                  
+                  {injection.notes && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <span className="text-sm font-medium text-gray-700">Notes: </span>
+                      <span className="text-sm text-gray-600">{injection.notes}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GLP1Tracker;
