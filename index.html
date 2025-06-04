@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jessica's GLP-1 Injection Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js" integrity="sha512-GykEjnFDEYXdwpMdMT9QLaxXelMvWPbw8ZqvU2r+WjG0M9rOD7qSYszkGqLdGDmGCdCQ3hMRqGHVwTX04qn4uWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         .accent-pink { accent-color: #ec4899; }
     </style>
@@ -18,6 +18,7 @@
                 <div>
                     <h1 class="text-3xl font-bold text-gray-800 mb-2">Jessica's GLP-1 Injection Tracker</h1>
                     <p class="text-gray-600">Track your injections and monitor your progress</p>
+                    <p class="text-sm text-green-600 mt-1 storage-status">✅ Data automatically saved to your browser</p>
                 </div>
                 <button id="addInjectionBtn" class="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors shadow-lg">
                     <i data-lucide="plus" class="w-5 h-5"></i>
@@ -145,13 +146,26 @@
     <script>
         // Wait for all resources to load before initializing
         window.addEventListener('load', function() {
-            // Initialize Lucide icons
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
+            // Initialize Lucide icons with delay to ensure CDN loads
+            setTimeout(() => {
+                createIconsIfAvailable();
+            }, 100);
+
+            // Check storage availability and update UI
+            const storageAvailable = isLocalStorageAvailable();
+            const statusMessage = document.querySelector('.storage-status');
+            if (statusMessage) {
+                if (storageAvailable) {
+                    statusMessage.textContent = '✅ Data automatically saved to your browser';
+                    statusMessage.className = 'text-sm text-green-600 mt-1 storage-status';
+                } else {
+                    statusMessage.textContent = '⚠️ Data will only be saved during this session';
+                    statusMessage.className = 'text-sm text-orange-600 mt-1 storage-status';
+                }
             }
 
             // State management
-            let injections = [];
+            let injections = loadInjections();
             let currentWeek = getWeekNumber(new Date());
             let editingId = null;
 
@@ -181,6 +195,54 @@
         const appetiteValue = document.getElementById('appetiteValue');
         const energyValue = document.getElementById('energyValue');
 
+        // Check if localStorage is available
+        function isLocalStorageAvailable() {
+            try {
+                const test = '__localStorage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Fallback storage for when localStorage isn't available
+        let fallbackStorage = {};
+
+        // LocalStorage functions with fallback
+        function saveInjections() {
+            try {
+                if (isLocalStorageAvailable()) {
+                    localStorage.setItem('glp1-injections', JSON.stringify(injections));
+                } else {
+                    // Use in-memory fallback
+                    fallbackStorage['glp1-injections'] = JSON.stringify(injections);
+                    console.info('Using in-memory storage (data will not persist between sessions)');
+                }
+            } catch (error) {
+                console.warn('Could not save data:', error);
+                // Use fallback storage
+                fallbackStorage['glp1-injections'] = JSON.stringify(injections);
+            }
+        }
+
+        function loadInjections() {
+            try {
+                if (isLocalStorageAvailable()) {
+                    const saved = localStorage.getItem('glp1-injections');
+                    return saved ? JSON.parse(saved) : [];
+                } else {
+                    // Use fallback storage
+                    const saved = fallbackStorage['glp1-injections'];
+                    return saved ? JSON.parse(saved) : [];
+                }
+            } catch (error) {
+                console.warn('Could not load data:', error);
+                return [];
+            }
+        }
+
         // Utility functions
         function getWeekNumber(date) {
             const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -204,11 +266,21 @@
             energyValue.textContent = '5';
         }
 
+        function createIconsIfAvailable() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                try {
+                    lucide.createIcons();
+                } catch (error) {
+                    console.warn('Could not create icons:', error);
+                }
+            }
+        }
+
         function showForm() {
             injectionForm.classList.remove('hidden');
             formTitle.textContent = editingId ? 'Edit Injection' : 'Add New Injection';
-            saveInjectionBtn.innerHTML = `<i data-lucide="save" class="w-5 h-5"></i>${editingId ? 'Update' : 'Save'} Injection`;
-            lucide.createIcons();
+            saveInjectionBtn.innerHTML = `<span class="inline-block w-5 h-5 mr-2">💾</span>${editingId ? 'Update' : 'Save'} Injection`;
+            createIconsIfAvailable();
         }
 
         function hideForm() {
@@ -248,6 +320,7 @@
                 injections.push(formData);
             }
 
+            saveInjections(); // Save to localStorage
             hideForm();
             updateDisplay();
         }
@@ -278,6 +351,7 @@
 
         function deleteInjection(id) {
             injections = injections.filter(inj => inj.id !== id);
+            saveInjections(); // Save to localStorage
             updateDisplay();
         }
 
@@ -342,7 +416,7 @@
                             <div class="flex justify-between items-start mb-3">
                                 <div class="flex items-center gap-4">
                                     <div class="bg-pink-100 p-2 rounded-lg">
-                                        <i data-lucide="calendar" class="text-pink-600 w-5 h-5"></i>
+                                        <span class="text-pink-600 text-lg">📅</span>
                                     </div>
                                     <div>
                                         <div class="font-medium text-gray-800">
@@ -353,21 +427,21 @@
                                 </div>
                                 <div class="flex gap-2">
                                     <button onclick="editInjectionById(${injection.id})" class="p-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
-                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                        <span class="inline-block w-4 h-4">✏️</span>
                                     </button>
                                     <button onclick="deleteInjection(${injection.id})" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        <span class="inline-block w-4 h-4">🗑️</span>
                                     </button>
                                 </div>
                             </div>
                             
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                                 <div class="flex items-center gap-2">
-                                    <i data-lucide="map-pin" class="text-gray-400 w-4 h-4"></i>
+                                    <span class="text-gray-400 text-sm">📍</span>
                                     <span class="text-sm text-gray-600">${injection.location}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <i data-lucide="heart" class="text-pink-400 w-4 h-4"></i>
+                                    <span class="text-pink-400 text-sm">💊</span>
                                     <span class="text-sm text-gray-600">${injection.dosage}</span>
                                 </div>
                                 <div class="text-sm text-gray-600">
@@ -395,9 +469,7 @@
                     `).join('')}
                 </div>
             `;
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            createIconsIfAvailable();
         }
 
         function updateDisplay() {
