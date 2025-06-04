@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jessica's GLP-1 Injection Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js" integrity="sha512-GykEjnFDEYXdwpMdMT9QLaxXelMvWPbw8ZqvU2r+WjG0M9rOD7qSYszkGqLdGDmGCdCQ3hMRqGHVwTX04qn4uWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         .accent-pink { accent-color: #ec4899; }
     </style>
@@ -143,13 +143,17 @@
     </div>
 
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
+        // Wait for all resources to load before initializing
+        window.addEventListener('load', function() {
+            // Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
 
-        // State management
-        let injections = [];
-        let currentWeek = getWeekNumber(new Date());
-        let editingId = null;
+            // State management
+            let injections = [];
+            let currentWeek = getWeekNumber(new Date());
+            let editingId = null;
 
         // DOM elements
         const addInjectionBtn = document.getElementById('addInjectionBtn');
@@ -214,6 +218,12 @@
         }
 
         function saveInjection() {
+            // Validate required fields
+            if (!injectionDate.value || !injectionTime.value || !injectionLocation.value || !injectionDosage.value) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
             const formData = {
                 id: editingId || Date.now(),
                 date: injectionDate.value,
@@ -231,13 +241,22 @@
 
             if (editingId) {
                 const index = injections.findIndex(inj => inj.id === editingId);
-                injections[index] = formData;
+                if (index !== -1) {
+                    injections[index] = formData;
+                }
             } else {
                 injections.push(formData);
             }
 
             hideForm();
             updateDisplay();
+        }
+
+        function editInjectionById(id) {
+            const injection = injections.find(inj => inj.id === id);
+            if (injection) {
+                editInjection(injection);
+            }
         }
 
         function editInjection(injection) {
@@ -333,7 +352,7 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button onclick="editInjection(${JSON.stringify(injection).replace(/"/g, '&quot;')})" class="p-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
+                                    <button onclick="editInjectionById(${injection.id})" class="p-2 text-pink-600 hover:bg-pink-50 rounded-lg transition-colors">
                                         <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </button>
                                     <button onclick="deleteInjection(${injection.id})" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -376,7 +395,9 @@
                     `).join('')}
                 </div>
             `;
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
 
         function updateDisplay() {
@@ -419,6 +440,8 @@
         // Initialize the app
         initializeForm();
         updateDisplay();
+        
+        }); // End of window.load event listener
     </script>
 </body>
 </html>
