@@ -151,6 +151,9 @@
                 createIconsIfAvailable();
             }, 100);
 
+            // Load saved data
+            injections = loadInjections();
+
             // Check storage availability and update UI
             const storageAvailable = isLocalStorageAvailable();
             const statusMessage = document.querySelector('.storage-status');
@@ -164,10 +167,7 @@
                 }
             }
 
-            // State management
-            let injections = loadInjections();
-            let currentWeek = getWeekNumber(new Date());
-            let editingId = null;
+            // Initialize DOM elements after page loads
 
         // DOM elements
         const addInjectionBtn = document.getElementById('addInjectionBtn');
